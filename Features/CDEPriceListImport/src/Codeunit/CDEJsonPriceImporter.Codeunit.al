@@ -19,7 +19,6 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         ErrHeaderCodeLbl: Label 'JSON header is missing required field "code".', Comment = 'Validation error for missing code field';
         ErrHeaderDescLbl: Label 'JSON header is missing required field "description".', Comment = 'Validation error for missing description field';
         ErrHeaderSourceTypeLbl: Label 'JSON header is missing required field "sourceType".', Comment = 'Validation error for missing sourceType field';
-        ErrHeaderStartDateLbl: Label 'JSON header is missing required field "startingDate".', Comment = 'Validation error for missing startingDate field';
         MissingHeaderNodeLbl: Label 'missing "header" node', Locked = true;
     begin
         LastError := '';
@@ -41,7 +40,8 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         end;
         HeaderObject := HeaderToken.AsObject();
 
-        // Validate mandatory header fields
+        // Validate mandatory header fields (only code, description, sourceType)
+        // startingDate, endingDate, sourceNo are optional in JSON — user can set them on the import page
         if not HasJsonTextValue(HeaderObject, 'code') then begin
             LastError := ErrHeaderCodeLbl;
             exit(false);
@@ -52,10 +52,6 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         end;
         if not HasJsonTextValue(HeaderObject, 'sourceType') then begin
             LastError := ErrHeaderSourceTypeLbl;
-            exit(false);
-        end;
-        if not HasJsonTextValue(HeaderObject, 'startingDate') then begin
-            LastError := ErrHeaderStartDateLbl;
             exit(false);
         end;
 

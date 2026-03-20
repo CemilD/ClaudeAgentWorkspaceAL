@@ -226,6 +226,22 @@ page 60101 "CDE Price List JSON Import"
                     CompanySelectorCU.ShowSelectorPage();
                 end;
             }
+            action(DownloadTemplate)
+            {
+                Caption = 'Download JSON Template';
+                ToolTip = 'Downloads an empty JSON template file with the correct structure for price list import.';
+                ApplicationArea = All;
+                Image = Template;
+                Promoted = true;
+                PromotedCategory = Process;
+
+                trigger OnAction()
+                var
+                    Exporter: Codeunit "CDE JSON Price Exporter";
+                begin
+                    Exporter.DownloadTemplateJson();
+                end;
+            }
         }
     }
 
