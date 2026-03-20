@@ -14,5 +14,8 @@ permissionset 60100 "CDE PriceList Import"
         tabledata "CDE Price Header Buffer" = RIMD,
         tabledata "CDE Price Line Buffer" = RIMD,
         tabledata "CDE Import Params" = RIMD,
-        tabledata "CDE Company Selection Buffer" = RIMD;
+        tabledata "CDE Company Selection Buffer" = RIMD,
+        tabledata "CDE Price Import Setup" = RIMD,
+        tabledata "VAT Business Posting Group" = R,
+        tabledata "Sales & Receivables Setup" = R;
 }

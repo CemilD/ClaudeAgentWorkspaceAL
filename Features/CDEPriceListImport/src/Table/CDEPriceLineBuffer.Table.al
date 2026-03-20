@@ -69,6 +69,26 @@ table 60107 "CDE Price Line Buffer"
             Caption = 'Skip Import';
             DataClassification = SystemMetadata;
         }
+        field(13; "CDE Allow Invoice Disc."; Boolean)
+        {
+            Caption = 'Allow Invoice Disc.';
+            DataClassification = SystemMetadata;
+        }
+        field(14; "CDE Allow Line Disc."; Boolean)
+        {
+            Caption = 'Allow Line Disc.';
+            DataClassification = SystemMetadata;
+        }
+        field(15; "CDE Price Includes VAT"; Boolean)
+        {
+            Caption = 'Price Includes VAT';
+            DataClassification = SystemMetadata;
+        }
+        field(16; "CDE VAT Bus. Post. Gr."; Code[20])
+        {
+            Caption = 'VAT Bus. Posting Gr. (Price)';
+            DataClassification = SystemMetadata;
+        }
     }
 
     keys

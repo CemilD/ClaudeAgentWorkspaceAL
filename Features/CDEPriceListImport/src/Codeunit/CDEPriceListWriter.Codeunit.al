@@ -5,33 +5,34 @@
 codeunit 60103 "CDE Price List Writer" implements "ICDEPriceListWriter"
 {
 
-    procedure CreatePriceListHeader(var HeaderBuffer: Record "CDE Price Header Buffer" temporary; NoSeriesCode: Code[20]; SourcePriceListCode: Code[20]): Code[20]
+    var
+        LastCreatedCode: Code[20];
+
+    procedure CreatePriceListHeader(var HeaderBuffer: Record "CDE Price Header Buffer" temporary; NoSeriesCode: Code[20]; ManualCode: Code[20]): Code[20]
     var
         PriceListHeader: Record "Price List Header";
         NoSeries: Codeunit "No. Series";
         NewCode: Code[20];
-        DescriptionText: Text[100];
-        RefSuffixLbl: Label ' (Ref: %1)', Comment = '%1 = source price list code, CDE Price List Import';
     begin
-        NewCode := NoSeries.GetNextNo(NoSeriesCode, WorkDate(), true);
+        // Determine code: manual entry or number series
+        if ManualCode <> '' then
+            NewCode := ManualCode
+        else
+            NewCode := NoSeries.GetNextNo(NoSeriesCode, WorkDate(), true);
 
         PriceListHeader.Init();
         PriceListHeader.Code := NewCode;
-        PriceListHeader."Price Type" := "Price Type"::Sale;
+        PriceListHeader.Validate("Price Type", "Price Type"::Sale);
         PriceListHeader.Status := "Price Status"::Draft;
-        PriceListHeader."Source Type" := HeaderBuffer."Source Type";
-        PriceListHeader."Source No." := HeaderBuffer."Source No.";
+        PriceListHeader.Validate("Source Type", HeaderBuffer."Source Type");
+        if HeaderBuffer."Source No." <> '' then
+            PriceListHeader.Validate("Source No.", HeaderBuffer."Source No.");
         PriceListHeader."Starting Date" := HeaderBuffer."Starting Date";
         PriceListHeader."Ending Date" := HeaderBuffer."Ending Date";
-
-        if SourcePriceListCode <> '' then
-            DescriptionText := CopyStr(HeaderBuffer."Description" + StrSubstNo(RefSuffixLbl, SourcePriceListCode), 1, 100)
-        else
-            DescriptionText := HeaderBuffer."Description";
-
-        PriceListHeader.Description := DescriptionText;
+        PriceListHeader.Description := HeaderBuffer."Description";
 
         PriceListHeader.Insert(true);
+        LastCreatedCode := NewCode;
         exit(NewCode);
     end;
 
@@ -52,15 +53,27 @@ codeunit 60103 "CDE Price List Writer" implements "ICDEPriceListWriter"
         PriceListLine."Line No." := GetNextLineNo(PriceListCode);
         PriceListLine."Price Type" := "Price Type"::Sale;
         PriceListLine."Asset Type" := "Price Asset Type"::Item;
-        PriceListLine."Asset No." := LineBuffer."Asset No.";
-        PriceListLine."Variant Code" := LineBuffer."Variant Code";
+        PriceListLine.Validate("Asset No.", LineBuffer."Asset No.");
+        if LineBuffer."Variant Code" <> '' then
+            PriceListLine.Validate("Variant Code", LineBuffer."Variant Code");
         PriceListLine."Starting Date" := LineBuffer."Starting Date";
         PriceListLine."Ending Date" := LineBuffer."Ending Date";
-        PriceListLine."Unit Price" := LineBuffer."Unit Price";
+        PriceListLine.Validate("Unit Price", LineBuffer."Unit Price");
         PriceListLine."Minimum Quantity" := LineBuffer."Minimum Quantity";
-        PriceListLine."Unit of Measure Code" := LineBuffer."Unit of Measure Code";
+        if LineBuffer."Unit of Measure Code" <> '' then
+            PriceListLine.Validate("Unit of Measure Code", LineBuffer."Unit of Measure Code");
+        PriceListLine."Allow Invoice Disc." := LineBuffer."CDE Allow Invoice Disc.";
+        PriceListLine."Allow Line Disc." := LineBuffer."CDE Allow Line Disc.";
+        PriceListLine."Price Includes VAT" := LineBuffer."CDE Price Includes VAT";
+        if LineBuffer."CDE VAT Bus. Post. Gr." <> '' then
+            PriceListLine.Validate("VAT Bus. Posting Gr. (Price)", LineBuffer."CDE VAT Bus. Post. Gr.");
         PriceListLine.Insert(true);
         exit(true);
+    end;
+
+    procedure GetLastCreatedPriceListCode(): Code[20]
+    begin
+        exit(LastCreatedCode);
     end;
 
     local procedure GetNextLineNo(PriceListCode: Code[20]): Integer

@@ -5,4 +5,6 @@ interface "ICDECompanySelector"
     procedure SetCurrentCompanyOnly();
     procedure SetAllCompanies();
     procedure IsManualSelectionDone(): Boolean;
+    procedure GetSelectedCompanyNames(): Text;
+    procedure GetSelectedCount(): Integer;
 }

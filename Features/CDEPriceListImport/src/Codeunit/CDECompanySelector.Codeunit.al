@@ -51,4 +51,23 @@ codeunit 60104 "CDE Company Selector" implements "ICDECompanySelector"
     begin
         exit(ManualSelectionDone);
     end;
+
+    procedure GetSelectedCompanyNames(): Text
+    var
+        CompanyName: Text;
+        Result: Text;
+    begin
+        Result := '';
+        foreach CompanyName in SelectedCompanies do begin
+            if Result <> '' then
+                Result += ', ';
+            Result += CompanyName;
+        end;
+        exit(Result);
+    end;
+
+    procedure GetSelectedCount(): Integer
+    begin
+        exit(SelectedCompanies.Count);
+    end;
 }

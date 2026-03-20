@@ -14,12 +14,18 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         LineToken: JsonToken;
         LineObject: JsonObject;
         EntryNo: Integer;
-        ErrParseRootLbl: Label 'Failed to parse JSON root object: %1', Comment = '%1 = error details';
-        ErrParseHeaderLbl: Label 'Failed to parse JSON header object: %1', Comment = '%1 = error details';
-        ErrHeaderCodeLbl: Label 'JSON header is missing required field "code".', Comment = 'Validation error for missing code field';
-        ErrHeaderDescLbl: Label 'JSON header is missing required field "description".', Comment = 'Validation error for missing description field';
-        ErrHeaderSourceTypeLbl: Label 'JSON header is missing required field "sourceType".', Comment = 'Validation error for missing sourceType field';
+        StartDateInvalid: Boolean;
+        EndDateInvalid: Boolean;
+        UnitPriceInvalid: Boolean;
+        MinQtyInvalid: Boolean;
+        ErrParseRootLbl: Label 'The file contains invalid JSON and could not be read. Please check the file for syntax errors (e.g. missing commas, brackets or quotation marks). Technical detail: %1', Comment = '%1 = error details';
+        ErrParseHeaderLbl: Label 'The JSON file is missing the "header" section. The file must contain a "header" object with code, description and sourceType. Technical detail: %1', Comment = '%1 = error details';
+        ErrHeaderCodeLbl: Label 'The price list code is missing in the header. Please fill in the field "code" in the JSON header.', Comment = 'Validation error for missing code field';
+        ErrHeaderDescLbl: Label 'The description is missing in the header. Please fill in the field "description" in the JSON header.', Comment = 'Validation error for missing description field';
+        ErrHeaderSourceTypeLbl: Label 'The source type is missing in the header. Please fill in the field "sourceType" in the JSON header (e.g. "Customer", "AllCustomers").', Comment = 'Validation error for missing sourceType field';
         MissingHeaderNodeLbl: Label 'missing "header" node', Locked = true;
+        ErrHeaderDateInvalidLbl: Label 'The starting date "%1" in the header is not a valid date. Please use the format YYYY-MM-DD (e.g. 2024-01-15).', Comment = '%1 = the invalid date value';
+        ErrHeaderEndDateInvalidLbl: Label 'The ending date "%1" in the header is not a valid date. Please use the format YYYY-MM-DD (e.g. 2024-12-31).', Comment = '%1 = the invalid date value';
     begin
         LastError := '';
         HeaderBuffer.Reset();
@@ -61,8 +67,16 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         HeaderBuffer."Description" := CopyStr(GetJsonTextValue(HeaderObject, 'description'), 1, 100);
         HeaderBuffer."Source Type" := MapSourceType(GetJsonTextValue(HeaderObject, 'sourceType'));
         HeaderBuffer."Source No." := CopyStr(GetJsonTextValue(HeaderObject, 'sourceNo'), 1, 20);
-        HeaderBuffer."Starting Date" := ParseDate(GetJsonTextValue(HeaderObject, 'startingDate'));
-        HeaderBuffer."Ending Date" := ParseDate(GetJsonTextValue(HeaderObject, 'endingDate'));
+        HeaderBuffer."Starting Date" := ParseDate(GetJsonTextValue(HeaderObject, 'startingDate'), StartDateInvalid);
+        if StartDateInvalid then begin
+            LastError := StrSubstNo(ErrHeaderDateInvalidLbl, GetJsonTextValue(HeaderObject, 'startingDate'));
+            exit(false);
+        end;
+        HeaderBuffer."Ending Date" := ParseDate(GetJsonTextValue(HeaderObject, 'endingDate'), EndDateInvalid);
+        if EndDateInvalid then begin
+            LastError := StrSubstNo(ErrHeaderEndDateInvalidLbl, GetJsonTextValue(HeaderObject, 'endingDate'));
+            exit(false);
+        end;
         // INTENTIONAL: Currency Code ignored, always use company currency
         HeaderBuffer.Insert();
 
@@ -78,17 +92,26 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
                 LineBuffer."Price List Code" := HeaderBuffer."Code";
                 LineBuffer."Asset No." := CopyStr(GetJsonTextValue(LineObject, 'assetNo'), 1, 20);
                 LineBuffer."Variant Code" := CopyStr(GetJsonTextValue(LineObject, 'variantCode'), 1, 10);
-                LineBuffer."Starting Date" := ParseDate(GetJsonTextValue(LineObject, 'startingDate'));
-                LineBuffer."Ending Date" := ParseDate(GetJsonTextValue(LineObject, 'endingDate'));
-                LineBuffer."Unit Price" := GetJsonDecimalValue(LineObject, 'unitPrice');
-                LineBuffer."Minimum Quantity" := GetJsonDecimalValue(LineObject, 'minimumQuantity');
+                LineBuffer."Starting Date" := ParseDate(GetJsonTextValue(LineObject, 'startingDate'), StartDateInvalid);
+                LineBuffer."Ending Date" := ParseDate(GetJsonTextValue(LineObject, 'endingDate'), EndDateInvalid);
+                LineBuffer."Unit Price" := GetJsonDecimalValue(LineObject, 'unitPrice', UnitPriceInvalid);
+                LineBuffer."Minimum Quantity" := GetJsonDecimalValue(LineObject, 'minimumQuantity', MinQtyInvalid);
                 LineBuffer."Unit of Measure Code" := CopyStr(GetJsonTextValue(LineObject, 'unitOfMeasureCode'), 1, 10);
+                LineBuffer."CDE Allow Invoice Disc." := GetJsonBoolValue(LineObject, 'allowInvoiceDisc');
+                LineBuffer."CDE Allow Line Disc." := GetJsonBoolValue(LineObject, 'allowLineDisc');
+                LineBuffer."CDE Price Includes VAT" := GetJsonBoolValue(LineObject, 'priceIncludesVAT');
+                LineBuffer."CDE VAT Bus. Post. Gr." := CopyStr(GetJsonTextValue(LineObject, 'vatBusPostingGr'), 1, 20);
                 LineBuffer."Validation Status" := LineBuffer."Validation Status"::" ";
 
-                // Mark error if mandatory line fields missing
-                if (LineBuffer."Asset No." = '') or (LineBuffer."Starting Date" = 0D) or (LineBuffer."Unit Price" <= 0) then begin
+                // Mark error with human-readable messages
+                if StartDateInvalid or EndDateInvalid or UnitPriceInvalid or MinQtyInvalid or
+                   (LineBuffer."Asset No." = '') or (LineBuffer."Starting Date" = 0D) or (LineBuffer."Unit Price" <= 0) then begin
                     LineBuffer."Validation Status" := LineBuffer."Validation Status"::Error;
-                    LineBuffer."Error Message" := BuildLineMissingFieldError(LineBuffer);
+                    LineBuffer."Error Message" := BuildLineError(EntryNo, LineBuffer,
+                        StartDateInvalid, EndDateInvalid, UnitPriceInvalid, MinQtyInvalid,
+                        GetJsonTextValue(LineObject, 'startingDate'),
+                        GetJsonTextValue(LineObject, 'endingDate'),
+                        GetJsonTextValue(LineObject, 'unitPrice'));
                 end;
 
                 LineBuffer.Insert();
@@ -129,27 +152,55 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         exit(Token.AsValue().AsText());
     end;
 
-    local procedure GetJsonDecimalValue(JsonObj: JsonObject; FieldName: Text): Decimal
+    local procedure GetJsonBoolValue(JsonObj: JsonObject; FieldName: Text): Boolean
     var
         Token: JsonToken;
     begin
         if not JsonObj.Get(FieldName, Token) then
-            exit(0);
+            exit(false);
         if not Token.IsValue() then
-            exit(0);
+            exit(false);
         if Token.AsValue().IsNull() then
-            exit(0);
-        exit(Token.AsValue().AsDecimal());
+            exit(false);
+        exit(Token.AsValue().AsText() in ['true', '1', 'yes']);
     end;
 
-    local procedure ParseDate(DateText: Text): Date
+    local procedure GetJsonDecimalValue(JsonObj: JsonObject; FieldName: Text; var IsInvalid: Boolean): Decimal
+    var
+        Token: JsonToken;
+        DecValue: Decimal;
+        TextValue: Text;
+    begin
+        IsInvalid := false;
+        if not JsonObj.Get(FieldName, Token) then
+            exit(0);
+        if not Token.IsValue() then begin
+            IsInvalid := true;
+            exit(0);
+        end;
+        if Token.AsValue().IsNull() then
+            exit(0);
+        if Token.AsValue().IsUndefined() then
+            exit(0);
+        // Get as text, then parse to decimal (safe for any JSON value type)
+        TextValue := Token.AsValue().AsText();
+        if not Evaluate(DecValue, TextValue) then begin
+            IsInvalid := true;
+            exit(0);
+        end;
+        exit(DecValue);
+    end;
+
+    local procedure ParseDate(DateText: Text; var IsInvalid: Boolean): Date
     var
         ParsedDate: Date;
     begin
+        IsInvalid := false;
         if DateText = '' then
             exit(0D);
         if Evaluate(ParsedDate, DateText) then
             exit(ParsedDate);
+        IsInvalid := true;
         exit(0D);
     end;
 
@@ -173,22 +224,42 @@ codeunit 60101 "CDE JSON Price Importer" implements "ICDEJsonPriceImporter"
         end;
     end;
 
-    local procedure BuildLineMissingFieldError(LineBuffer: Record "CDE Price Line Buffer" temporary): Text[500]
+    local procedure BuildLineError(LineNo: Integer; LineBuffer: Record "CDE Price Line Buffer" temporary; StartDateInvalid: Boolean; EndDateInvalid: Boolean; UnitPriceInvalid: Boolean; MinQtyInvalid: Boolean; RawStartDate: Text; RawEndDate: Text; RawUnitPrice: Text): Text[500]
     var
-        MissingFields: Text;
-        ErrMissingFieldsLbl: Label 'Missing required fields: %1', Comment = '%1 = comma-separated list of missing field names';
-        AssetNoFieldLbl: Label 'assetNo', Locked = true;
-        StartingDateFieldLbl: Label 'startingDate', Locked = true;
-        UnitPriceFieldLbl: Label 'unitPrice (must be > 0)', Locked = true;
+        Problems: Text;
+        ErrLineProblemsLbl: Label 'Line %1: %2', Comment = '%1 = line number, %2 = problem description';
+        ErrAssetNoMissingLbl: Label 'Item No. (assetNo) is empty', Comment = 'Human-readable error for missing item number';
+        ErrStartDateMissingLbl: Label 'Starting Date (startingDate) is empty', Comment = 'Human-readable error for missing start date';
+        ErrStartDateInvalidLbl: Label 'Starting Date "%1" is not a valid date (expected format: YYYY-MM-DD)', Comment = '%1 = the invalid date value from JSON';
+        ErrEndDateInvalidLbl: Label 'Ending Date "%1" is not a valid date (expected format: YYYY-MM-DD)', Comment = '%1 = the invalid date value from JSON';
+        ErrUnitPriceZeroLbl: Label 'Unit Price must be greater than 0', Comment = 'Human-readable error for zero/negative price';
+        ErrUnitPriceInvalidLbl: Label 'Unit Price "%1" is not a valid number (use a dot as decimal separator, e.g. 99.50)', Comment = '%1 = the invalid price value from JSON';
+        ErrMinQtyInvalidLbl: Label 'Minimum Quantity is not a valid number', Comment = 'Human-readable error for invalid min qty';
     begin
-        MissingFields := '';
+        Problems := '';
+
         if LineBuffer."Asset No." = '' then
-            MissingFields += AssetNoFieldLbl + ', ';
-        if LineBuffer."Starting Date" = 0D then
-            MissingFields += StartingDateFieldLbl + ', ';
-        if LineBuffer."Unit Price" <= 0 then
-            MissingFields += UnitPriceFieldLbl + ', ';
-        MissingFields := DelChr(MissingFields, '>', ', ');
-        exit(CopyStr(StrSubstNo(ErrMissingFieldsLbl, MissingFields), 1, 500));
+            Problems += ErrAssetNoMissingLbl + '; ';
+
+        if StartDateInvalid then
+            Problems += StrSubstNo(ErrStartDateInvalidLbl, RawStartDate) + '; '
+        else
+            if LineBuffer."Starting Date" = 0D then
+                Problems += ErrStartDateMissingLbl + '; ';
+
+        if UnitPriceInvalid then
+            Problems += StrSubstNo(ErrUnitPriceInvalidLbl, RawUnitPrice) + '; '
+        else
+            if LineBuffer."Unit Price" <= 0 then
+                Problems += ErrUnitPriceZeroLbl + '; ';
+
+        if EndDateInvalid then
+            Problems += StrSubstNo(ErrEndDateInvalidLbl, RawEndDate) + '; ';
+
+        if MinQtyInvalid then
+            Problems += ErrMinQtyInvalidLbl + '; ';
+
+        Problems := DelChr(Problems, '>', '; ');
+        exit(CopyStr(StrSubstNo(ErrLineProblemsLbl, LineNo, Problems), 1, 500));
     end;
 }

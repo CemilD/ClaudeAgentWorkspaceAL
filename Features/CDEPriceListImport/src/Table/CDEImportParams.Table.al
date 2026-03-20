@@ -58,6 +58,11 @@ table 60109 "CDE Import Params"
             Caption = 'All Companies';
             DataClassification = SystemMetadata;
         }
+        field(11; "Manual Price List Code"; Code[20])
+        {
+            Caption = 'Manual Price List Code';
+            DataClassification = SystemMetadata;
+        }
     }
 
     keys

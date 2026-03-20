@@ -56,6 +56,30 @@ page 60103 "CDE Price Line Buffer List"
                     ApplicationArea = All;
                     ToolTip = 'Specifies the unit of measure for which this price applies.';
                 }
+                field("CDE Allow Invoice Disc."; Rec."CDE Allow Invoice Disc.")
+                {
+                    ApplicationArea = All;
+                    Caption = 'Allow Invoice Disc.';
+                    ToolTip = 'Specifies whether invoice discount is allowed for this line.';
+                }
+                field("CDE Allow Line Disc."; Rec."CDE Allow Line Disc.")
+                {
+                    ApplicationArea = All;
+                    Caption = 'Allow Line Disc.';
+                    ToolTip = 'Specifies whether line discount is allowed for this line.';
+                }
+                field("CDE Price Includes VAT"; Rec."CDE Price Includes VAT")
+                {
+                    ApplicationArea = All;
+                    Caption = 'Price Includes VAT';
+                    ToolTip = 'Specifies whether the unit price includes VAT.';
+                }
+                field("CDE VAT Bus. Post. Gr."; Rec."CDE VAT Bus. Post. Gr.")
+                {
+                    ApplicationArea = All;
+                    Caption = 'VAT Bus. Posting Gr. (Price)';
+                    ToolTip = 'Specifies the VAT business posting group for the price calculation.';
+                }
                 field("Validation Status"; Rec."Validation Status")
                 {
                     ApplicationArea = All;

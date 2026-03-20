@@ -8,6 +8,8 @@ codeunit 60100 "CDE Import Orchestrator" implements "ICDEImportOrchestrator"
         CompanySelector: Interface "ICDECompanySelector";
         Logger: Interface "ICDEImportLogger";
         DependenciesSet: Boolean;
+        LastRunError: Text;
+        LastPriceListCode: Code[20];
         OrchestratorRunLocationLbl: Label 'CDEImportOrchestrator.Run', Locked = true;
 
     procedure Run(var ImportParams: Record "CDE Import Params" temporary; var HeaderBuffer: Record "CDE Price Header Buffer" temporary; var LineBuffer: Record "CDE Price Line Buffer" temporary): Boolean
@@ -18,13 +20,19 @@ codeunit 60100 "CDE Import Orchestrator" implements "ICDEImportOrchestrator"
         LinesImported: Integer;
         LinesSkipped: Integer;
         ProcessOk: Boolean;
-        ErrProcessCompanyLbl: Label 'Import failed for company %1.', Comment = '%1 = company name';
+        ActualError: Text;
+        ErrProcessCompanyLbl: Label 'The import failed for company "%1".', Comment = '%1 = company name';
+        ErrNoCompanyLbl: Label 'No company selected. Please select at least one company for the import.';
     begin
         EnsureDefaultDependencies();
+        LastRunError := '';
+        LastPriceListCode := '';
 
         CompanyList := CompanySelector.GetSelectedCompanies();
-        if CompanyList.Count = 0 then
+        if CompanyList.Count = 0 then begin
+            LastRunError := ErrNoCompanyLbl;
             exit(false);
+        end;
 
         foreach CurrentCompany in CompanyList do begin
             LinesImported := 0;
@@ -33,15 +41,29 @@ codeunit 60100 "CDE Import Orchestrator" implements "ICDEImportOrchestrator"
 
             ProcessOk := TryProcessCompany(ImportParams, HeaderBuffer, LineBuffer, CurrentCompany, PriceListCode, LinesImported, LinesSkipped);
             if not ProcessOk then begin
-                Logger.LogError(CurrentCompany, PriceListCode, OrchestratorRunLocationLbl, StrSubstNo(ErrProcessCompanyLbl, CurrentCompany));
+                ActualError := GetLastErrorText();
+                LastRunError := StrSubstNo(ErrProcessCompanyLbl, CurrentCompany) + ' ' + ActualError;
+                Logger.LogError(CurrentCompany, PriceListCode, OrchestratorRunLocationLbl,
+                    StrSubstNo(ErrProcessCompanyLbl, CurrentCompany) + ' ' + ActualError);
                 exit(false);
             end;
 
+            LastPriceListCode := PriceListCode;
             Logger.LogSuccess(CurrentCompany, PriceListCode, ImportParams."Existing Price List Code", LinesImported, LinesSkipped);
             Commit();
         end;
 
         exit(true);
+    end;
+
+    procedure GetLastRunError(): Text
+    begin
+        exit(LastRunError);
+    end;
+
+    procedure GetLastPriceListCode(): Code[20]
+    begin
+        exit(LastPriceListCode);
     end;
 
     procedure SetDependencies(
@@ -61,17 +83,14 @@ codeunit 60100 "CDE Import Orchestrator" implements "ICDEImportOrchestrator"
 
     [TryFunction]
     local procedure TryProcessCompany(var ImportParams: Record "CDE Import Params" temporary; var HeaderBuffer: Record "CDE Price Header Buffer" temporary; var LineBuffer: Record "CDE Price Line Buffer" temporary; CompanyName: Text; var PriceListCode: Code[20]; var LinesImported: Integer; var LinesSkipped: Integer)
-    var
-        SourcePriceListCode: Code[20];
     begin
-        // Determine source price list code for reference
+        // Determine price list code based on import mode
         if ImportParams."Import Mode" = ImportParams."Import Mode"::ModifyExisting then
-            SourcePriceListCode := ImportParams."Existing Price List Code"
+            // Use existing price list - just add lines
+            PriceListCode := ImportParams."Existing Price List Code"
         else
-            SourcePriceListCode := '';
-
-        // Create the price list header
-        PriceListCode := Writer.CreatePriceListHeader(HeaderBuffer, ImportParams."No. Series Code", SourcePriceListCode);
+            // New price list - create header (manual code or number series)
+            PriceListCode := Writer.CreatePriceListHeader(HeaderBuffer, ImportParams."No. Series Code", ImportParams."Manual Price List Code");
 
         // Process all lines
         LineBuffer.Reset();

@@ -40,6 +40,10 @@ codeunit 60106 "CDE JSON Price Exporter" implements "ICDEJsonPriceExporter"
                 LineObject.Add('unitPrice', PriceListLine."Unit Price");
                 LineObject.Add('minimumQuantity', PriceListLine."Minimum Quantity");
                 LineObject.Add('unitOfMeasureCode', Format(PriceListLine."Unit of Measure Code"));
+                LineObject.Add('allowInvoiceDisc', PriceListLine."Allow Invoice Disc.");
+                LineObject.Add('allowLineDisc', PriceListLine."Allow Line Disc.");
+                LineObject.Add('priceIncludesVAT', PriceListLine."Price Includes VAT");
+                LineObject.Add('vatBusPostingGr', Format(PriceListLine."VAT Bus. Posting Gr. (Price)"));
                 LinesArray.Add(LineObject);
             until PriceListLine.Next() = 0;
 
@@ -85,6 +89,10 @@ codeunit 60106 "CDE JSON Price Exporter" implements "ICDEJsonPriceExporter"
         LineObject.Add('unitPrice', 0);
         LineObject.Add('minimumQuantity', 0);
         LineObject.Add('unitOfMeasureCode', '');
+        LineObject.Add('allowInvoiceDisc', false);
+        LineObject.Add('allowLineDisc', false);
+        LineObject.Add('priceIncludesVAT', false);
+        LineObject.Add('vatBusPostingGr', '');
         LinesArray.Add(LineObject);
 
         // Assemble root
