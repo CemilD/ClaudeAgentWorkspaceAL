@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find 'C:/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace' -name *.al -type f)",
+      "Bash(find 'C:/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace/Features' -name *.al)",
+      "Bash(grep -v \"//\")",
+      "Bash(grep:*)",
+      "Bash(find 'C:/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace/.claude/worktrees/agent-a8c4ca14/' -name *.al)",
+      "Bash(find 'C:/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace/.claude/worktrees/agent-a8c4ca14' -name *.al)",
+      "Bash(git:*)",
+      "Bash(find 'C:/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace' -name *.al)",
+      "Bash(find 'C:/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace/Features/CDEPriceListImport' -name *.al)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/c.demirezen/OneDrive - PRODWARE/LCLRepo/ClaudeAgentWorkspaceAL/ClaudeAgentWorkspace/**)",
+      "Bash(done)",
+      "Bash(xxd Features/CDEPriceListImport/src/Interface/ICDEPriceListValidator.Interface.al)",
+      "Bash(do printf:*)",
+      "Bash(xxd \"$f\")",
+      "Bash(cd:*)"
+    ]
+  }
+}
